@@ -26,7 +26,11 @@ public class RevisarDeudoresComponent {
 		}
 
 		String valorProp = relacion.getProperty(key);
-
-		return Integer.valueOf(valorProp) < 2000;
+		if(valorProp!=null) {
+			return Double.valueOf(valorProp) < 2000;
+		}else {
+			return true;
+		}
+		
 	}
 }

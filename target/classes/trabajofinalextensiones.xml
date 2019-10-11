@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:smtp="http://www.mulesoft.org/schema/mule/smtp" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
+http://www.mulesoft.org/schema/mule/smtp http://www.mulesoft.org/schema/mule/smtp/current/mule-smtp.xsd">
+    <file:connector name="File" autoDelete="true" streaming="true" validateConnections="true" doc:name="File"/>
+    <http:listener-config name="HTTP_Listener_Configuration" host="0.0.0.0" port="8081"  doc:name="HTTP Listener Configuration"/>
+    <file:file-to-string-transformer name="File_to_String" doc:name="File to String"/>
+    <custom-transformer class="org.mule.transformer.StringFileToPedido" name="StringFileToPedido" doc:name="Java"/>
+    <smtp:gmail-connector name="Gmail" validateConnections="true" doc:name="Gmail"/>
+    <flow name="entrega">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/entrada" doc:name="HTTP"/>
+        <logger message="Flow entrega" level="INFO" doc:name="Logger"/>
+        <http:static-resource-handler resourceBase="docroot" defaultFile="index.html" doc:name="HTTP Static Resource Handler"/>
+    </flow>
+    <flow name="RecepcionPorFicheroFlow">
+        <file:inbound-endpoint path="tmp/input" moveToPattern="#[message.inboundProperties['originalFilename']].backup" moveToDirectory="tmp" responseTimeout="10000" transformer-refs="File_to_String StringFileToPedido" doc:name="File CSV"/>
+        <echo-component doc:name="Echo"/>
+        <vm:outbound-endpoint exchange-pattern="one-way" path="comprobarStock" doc:name="VM-ComprobarStock3"/>
+    </flow>
+    <flow name="RecepcionPorHttpFlow">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/facturacion" doc:name="HTTP"/>
+        <logger message="Trabajo final flow" level="INFO" doc:name="Logger"/>
+        <expression-filter expression="#[message.inboundProperties.'http.request.path'!='pedido/favicon.ico']" doc:name="Expression"/>
+        <custom-transformer class="org.mule.transformer.HttpQueryToPedidoTransformer" doc:name="HttpQueryToPedido"/>
+        <echo-component doc:name="Echo"/>
+        <vm:outbound-endpoint exchange-pattern="one-way" path="comprobarStock" doc:name="VM-comprobarStock1"/>
+    </flow>
+    <flow name="ComprobarDisponibleFlow">
+        <vm:inbound-endpoint exchange-pattern="one-way" path="comprobarStock" doc:name="VM-comprobarStock2"/>
+        <custom-transformer class="org.mule.transformer.PedidoToLineaPedido" doc:name="PedidoToPedidoSimpleList"/>
+        <collection-splitter doc:name="Collection Splitter"/>
+        <echo-component doc:name="Echo"/>
+        <choice doc:name="Choice">
+            <when expression="payload.disponible==true">
+                <vm:outbound-endpoint exchange-pattern="one-way" path="pedidoDisponible" doc:name="VM-PedidoDisponible1"/>
+            </when>
+            <otherwise>
+                <vm:outbound-endpoint exchange-pattern="one-way" path="faltaStock" doc:name="VM-rechazarFaltaStock1"/>
+            </otherwise>
+        </choice>
+    </flow>
+    <flow name="LineaPedidoDisponibleFlow">
+        <vm:inbound-endpoint exchange-pattern="one-way" path="pedidoDisponible" doc:name="VM-PedidoDisponible2"/>
+        <choice doc:name="Choice">
+            <when expression="payload.financiacion==true">
+                <vm:outbound-endpoint exchange-pattern="one-way" path="tramitarFinanciacion" doc:name="VM-TramitarFinanciacion1"/>
+            </when>
+            <otherwise>
+                <vm:outbound-endpoint exchange-pattern="one-way" path="emitirFactura" doc:name="VM-EmitirFactura1"/>
+            </otherwise>
+        </choice>
+        <vm:outbound-endpoint exchange-pattern="one-way" path="envioPedido" doc:name="VM-EnvioPedido1"/>
+    </flow>
+    <flow name="TramitarFinanciacionFlow">
+        <vm:inbound-endpoint exchange-pattern="one-way" path="tramitarFinanciacion" doc:name="VM-TramitarFinanciacion2"/>
+        <component class="org.mule.component.RevisarDeudoresComponent" doc:name="Revisar Deudores Component"/>
+        <choice doc:name="Choice">
+            <when expression="payload.financiable==true">
+                <vm:outbound-endpoint exchange-pattern="one-way" path="GenerarCartaFinan" doc:name="VM-GenerarCartaFinan1"/>
+            </when>
+            <otherwise>
+                <vm:outbound-endpoint exchange-pattern="one-way" path="GenerarCartaRech" doc:name="VM-GenerarCartaRech1"/>
+            </otherwise>
+        </choice>
+        <vm:outbound-endpoint exchange-pattern="one-way" path="emitirFactura" doc:name="VM-EmitirFactura3"/>
+    </flow>
+    <flow name="GenerarCartaFinanFlow">
+        <vm:inbound-endpoint exchange-pattern="one-way" path="GenerarCartaFinan" doc:name="VM-GenerarCartaFinan2"/>
+        <set-variable variableName="cliente" value="#[payload.nifCliente]" doc:name="Variable"/>
+        <component class="org.mule.component.GenerarCartaFinanciacionComponent" doc:name="Generar Carta Financiacion Component"/>
+        <file:outbound-endpoint path="tmp/output/cartaAprobFinan" outputPattern="#[function:datestamp]-#[cliente]-cartaAprobFinan.txt" responseTimeout="10000" doc:name="File"/>
+        <smtp:outbound-endpoint host="smtp.gmail.com" port="587" user="trabajofinal.diai.miw@gmail.com" password="uo250817" connector-ref="Gmail" to="uo250817@uniovi.es" from="trabajofinal.diai.miw@gmail.com" subject="Carta aceptacion financiacion a  cliente " responseTimeout="10000" doc:name="SMTP-Carta-Aceptacion"/>
+    </flow>
+    <flow name="GenerarCartaRechazo">
+        <vm:inbound-endpoint exchange-pattern="one-way" path="GenerarCartaRech" doc:name="VM-GenerarCartaRech2"/>
+        <set-variable variableName="cliente" value="#[payload.nifCliente]" doc:name="Variable"/>
+        <component class="org.mule.component.GenerarCartaRechazoFinanciacionComponent" doc:name="Generar Carta Rechazo Financiacion Component"/>
+        <file:outbound-endpoint path="tmp/output/cartaRechazoFinan" outputPattern="#[function:datestamp]-#[cliente]-cartaRechazoFinan.txt" responseTimeout="10000" doc:name="File"/>
+        <smtp:outbound-endpoint host="smtp.gmail.com" port="587" user="trabajofinal.diai.miw@gmail.com" password="uo250817" connector-ref="Gmail" to="uo250817@uniovi.es" from="trabajofinal.diai.miw@gmail.com" subject="Carta rechazo financiacion a  cliente " responseTimeout="10000" doc:name="SMTP-Carta-Rechazo"/>
+    </flow>
+    <flow name="EmitirFacturaFlow">
+        <vm:inbound-endpoint exchange-pattern="one-way" path="emitirFactura" doc:name="VM-EmitirFactura2"/>
+        <logger message="Emitir factura flow" level="INFO" doc:name="Logger"/>
+        <set-variable variableName="cliente" value="#[payload.nifCliente]" doc:name="Variable"/>
+        <collection-aggregator timeout="2000" failOnTimeout="false" doc:name="Collection Aggregator"/>
+        <component class="org.mule.component.EmitirFacturaComponente" doc:name="EmitirFacturaComponente"/>
+        <file:outbound-endpoint path="tmp/output/factura" outputPattern="#[function:datestamp]-#[cliente]-factura.txt" responseTimeout="10000" doc:name="File"/>
+        <smtp:outbound-endpoint host="smtp.gmail.com" port="587" user="trabajofinal.diai.miw@gmail.com" password="uo250817" connector-ref="Gmail" to="uo250817@uniovi.es" from="trabajofinal.diai.miw@gmail.com" subject="Factura Cliente " responseTimeout="10000" doc:name="SMTP-Factura"/>
+    </flow>
+    <flow name="RechazarPorFaltaStockFlow">
+        <vm:inbound-endpoint exchange-pattern="one-way" path="faltaStock" doc:name="VM-rechazarFaltaStock2"/>
+        <logger message="Rechazo por falta de stock" level="INFO" doc:name="Logger"/>
+        <component class="org.mule.component.RechazarPorFaltaStockComponent" doc:name="RechazarPorFalta Stock Component"/>
+    </flow>
+    <flow name="EnvioPedidoFlow">
+        <vm:inbound-endpoint exchange-pattern="one-way" path="envioPedido" doc:name="VM-EnvioPedido"/>
+        <logger message="Flow envio pedido" level="INFO" doc:name="Logger"/>
+        <component class="org.mule.component.RevisarVipComponent" doc:name="RevisarVipComponent"/>
+        <choice doc:name="Choice">
+            <when expression="payload.clienteVip==true">
+                <logger message="Generar pedido Urgente" level="INFO" doc:name="Logger"/>
+                <set-variable variableName="isbn" value="#[payload.isbn]" doc:name="Variable"/>
+                <component class="org.mule.component.GenerarPedidoUrgente" doc:name="GenerarPedidoUrgente"/>
+                <file:outbound-endpoint path="tmp/output/pedidoUrgente" outputPattern="#[function:datestamp]-#[isbn]-pedidoUrgente.txt" responseTimeout="10000" doc:name="File"/>
+            </when>
+            <otherwise>
+                <logger message="Generar Pedido Ordinario" level="INFO" doc:name="Logger"/>
+                <set-variable variableName="isbn" value="#[payload.isbn]" doc:name="Variable"/>
+                <component class="org.mule.component.GenerarPedidoOrdinario" doc:name="GenerarPedidoOrdinario"/>
+                <file:outbound-endpoint path="tmp/output/pedidoOrdinario" outputPattern="#[function:datestamp]-#[isbn]-pedidoOrdinario.txt" responseTimeout="10000" doc:name="File"/>
+            </otherwise>
+        </choice>
+    </flow>
+</mule>

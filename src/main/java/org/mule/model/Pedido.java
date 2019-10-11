@@ -41,6 +41,7 @@ public class Pedido {
 	public void setProductos(Map<String, String> productos) {
 		this.productos = productos;
 	}
+
 	@Override
 	public String toString() {
 		return "Pedido [NIF=" + NIF + ", nombreCompleto=" + nombreCompleto + ", financia=" + financia + ", productos="

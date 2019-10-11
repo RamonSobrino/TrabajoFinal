@@ -26,8 +26,12 @@ public class RevisarVipComponent {
 		}
 
 		String valorProp = relacion.getProperty(key);
-
-		return Double.valueOf(valorProp) >= 2000;
+		
+		if(valorProp!=null) {
+			return Double.valueOf(valorProp) >= 2000;
+		}else {
+			return false;
+		}
 	}
 
 }

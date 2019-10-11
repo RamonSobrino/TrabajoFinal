@@ -20,7 +20,7 @@ public class PedidoToLineaPedido extends AbstractTransformer {
 		List<LineaPedido> lista = new ArrayList<>();
 		
 		pedido.getProductos().forEach((key,value)->{
-			lista.add(new LineaPedido(key,this.comprobarDisponibilidad(key, value),pedido.isFinancia(), pedido.getNIF(),value ));
+			lista.add(new LineaPedido(key,this.comprobarDisponibilidad(key, value),value, pedido));
 		});
 		
 		return lista;

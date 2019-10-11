@@ -23,19 +23,19 @@ public class HttpQueryToPedidoTransformer extends AbstractMessageTransformer {
 
 		Pedido pedido = new Pedido();
 
-		if (queryParams.containsKey("NIF")) {
-			pedido.setNIF(queryParams.get("NIF"));
+		if (queryParams.containsKey("cif")) {
+			pedido.setNIF(queryParams.get("cif"));
 		}
 
-		if (queryParams.containsKey("nombreCompleto")) {
-			String corte = queryParams.get("nombreCompleto").replace("%20", " ");
-			pedido.setNombreCompleto(corte);
+		if (queryParams.containsKey("nombre") || queryParams.containsKey("apellidos")) {
+			String corte = queryParams.get("apellidos").replace("%20", " ");
+			pedido.setNombreCompleto(queryParams.get("nombre")+corte);
 		}
-
-		// CARGA DE RELACION ENTRE PRODUCTOS Y ISBN
-//		String rootPath = Thread.currentThread().getContextClassLoader().getResource("src/main/resources/relacionProductosISBN.properties")
-//				.getPath();
-//		System.out.println(rootPath);
+		
+		if (queryParams.containsKey("financia")) {
+			pedido.setFinancia(queryParams.get("financia").equals("on")?true:false);
+		}
+		
 
 		Properties relacion = new Properties();
 		
@@ -48,7 +48,10 @@ public class HttpQueryToPedidoTransformer extends AbstractMessageTransformer {
 		Map<String, String> productos = new HashMap<>();
 		for (int i = 1; i <= 10; i++) {
 			if (queryParams.containsKey("producto" + i)) {
-				productos.put(relacion.getProperty("producto" + i), queryParams.get("producto" + i));
+				int cantidad = Integer.valueOf( queryParams.get("producto" + i));
+				if(cantidad>0) {
+					productos.put(relacion.getProperty("producto" + i), queryParams.get("producto" + i));
+				}
 			}
 		}
 

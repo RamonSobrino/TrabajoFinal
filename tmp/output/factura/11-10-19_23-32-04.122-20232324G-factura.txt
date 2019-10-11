@@ -1,0 +1,8 @@
+********  FACTURA  ************ 
+Nombre Cliente: Belarmino López López
+NIF Cliente: 20232324G
+Es un pedido financiado
+Pedido: 
+ISBN: 0321127420 Cantidad: 7
+ISBN: 0201615835 Cantidad: 3
+

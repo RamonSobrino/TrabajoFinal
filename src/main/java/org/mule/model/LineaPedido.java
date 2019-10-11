@@ -9,6 +9,7 @@ public class LineaPedido {
 	private String cantidad;
 	private boolean financiable;
 	private boolean clienteVip;
+	private String nombreCompleto;
 	
 	
 	public LineaPedido(String isbn,boolean financiacion, boolean disponible, String nifCliente, String cantidad) {
@@ -19,6 +20,17 @@ public class LineaPedido {
 		this.cantidad = cantidad;
 		this.financiacion =financiacion;
 	}
+	
+	public LineaPedido(String isbn, boolean disponible, String cantidad, Pedido pedido) {
+		super();
+		this.isbn = isbn;
+		this.disponible = disponible;
+		this.cantidad = cantidad;
+		this.financiacion = pedido.isFinancia();
+		this.nifCliente = pedido.getNIF();
+		this.nombreCompleto = pedido.getNombreCompleto();
+	}
+
 
 
 	public String getIsbn() {
@@ -87,6 +99,15 @@ public class LineaPedido {
 
 	public void setClienteVip(boolean clienteVip) {
 		this.clienteVip = clienteVip;
+	}
+	
+	public String getNombreCompleto() {
+		return nombreCompleto;
+	}
+
+
+	public void setNombreCompleto(String nombreCompleto) {
+		this.nombreCompleto = nombreCompleto;
 	}
 
 
