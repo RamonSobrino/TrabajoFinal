@@ -11,9 +11,13 @@ http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/m
 http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd">
     <file:connector name="File" autoDelete="true" streaming="true" validateConnections="true" doc:name="File"/>
     <file:file-to-string-transformer name="File_to_String" doc:name="File to String"/>
-    <http:listener-config name="HTTP_Listener_Configuration" host="0.0.0.0" port="8081" basePath="/pedido" doc:name="HTTP Listener Configuration"/>
+    <http:listener-config name="HTTP_Listener_Configuration" host="0.0.0.0" port="8081"  doc:name="HTTP Listener Configuration"/>
+    <flow name="entrega">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/entrada" doc:name="HTTP"/>
+        <http:static-resource-handler resourceBase="docroot" defaultFile="index.html" doc:name="HTTP Static Resource Handler"/>
+    </flow>
     <flow name="trabajofinalFlow">
-        <http:listener config-ref="HTTP_Listener_Configuration" path="/*" doc:name="HTTP"/>
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/facturacion" doc:name="HTTP"/>
         <expression-filter expression="#[message.inboundProperties.'http.request.path'!='pedido/favicon.ico']" doc:name="Expression"/>
         <custom-transformer class="org.mule.transformer.HttpQueryToPedidoTransformer" doc:name="HttpQueryToPedido"/>
         <echo-component doc:name="Echo"/>
@@ -47,11 +51,16 @@ http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/cu
     </flow>
     <flow name="TramitarFinanciacionFlow">
         <vm:inbound-endpoint exchange-pattern="one-way" path="tramitarFinanciacion" doc:name="VM-TramitarFinanciacion2"/>
+        <component class="org.mule.component.RevisarDeudoresComponent" doc:name="Revisar Deudores Component"/>
         <choice doc:name="Choice">
+            <when expression="payload.financiable==true">
+                <component class="org.mule.component.GenerarCartaFinanciacionComponent" doc:name="Generar Carta Financiacion Component"/>
+            </when>
             <otherwise>
-                <vm:outbound-endpoint exchange-pattern="one-way" path="emitirFactura" doc:name="VM-EmitirFactura3"/>
+                <component class="org.mule.component.GenerarCartaRechazoFinanciacionComponent" doc:name="Generar Carta Rechazo Financiacion Component"/>
             </otherwise>
         </choice>
+        <vm:outbound-endpoint exchange-pattern="one-way" path="emitirFactura" doc:name="VM-EmitirFactura3"/>
     </flow>
     <flow name="EmitirFacturaFlow">
         <vm:inbound-endpoint exchange-pattern="one-way" path="emitirFactura" doc:name="VM-EmitirFactura2"/>
@@ -61,5 +70,14 @@ http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/cu
     </flow>
     <flow name="EnvioPedidoFlow">
         <vm:inbound-endpoint exchange-pattern="one-way" path="envioPedido" doc:name="VM-EnvioPedido"/>
+        <component class="org.mule.component.RevisarVipComponent" doc:name="RevisarVipComponent"/>
+        <choice doc:name="Choice">
+            <when expression="payload.clienteVip==true">
+                <component class="org.mule.component.GenerarPedidoUrgente" doc:name="GenerarPedidoUrgente"/>
+            </when>
+            <otherwise>
+                <component class="org.mule.component.GenerarPedidoOrdinario" doc:name="GenerarPedidoOrdinario"/>
+            </otherwise>
+        </choice>
     </flow>
 </mule>

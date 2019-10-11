@@ -7,6 +7,8 @@ public class LineaPedido {
 	private boolean financiacion;
 	private String nifCliente;
 	private String cantidad;
+	private boolean financiable;
+	private boolean clienteVip;
 	
 	
 	public LineaPedido(String isbn,boolean financiacion, boolean disponible, String nifCliente, String cantidad) {
@@ -68,14 +70,32 @@ public class LineaPedido {
 	}
 
 
+	public boolean isFinanciable() {
+		return financiable;
+	}
+
+
+	public void setFinanciable(boolean financiable) {
+		this.financiable = financiable;
+	}
+
+
+	public boolean isClienteVip() {
+		return clienteVip;
+	}
+
+
+	public void setClienteVip(boolean clienteVip) {
+		this.clienteVip = clienteVip;
+	}
+
+
 	@Override
 	public String toString() {
-		return "LineaPedido [isbn=" + isbn + ", disponible=" + disponible + ", nifCliente=" + nifCliente + ", cantidad="
-				+ cantidad + "]";
+		return "LineaPedido [isbn=" + isbn + ", disponible=" + disponible + ", financiacion=" + financiacion
+				+ ", nifCliente=" + nifCliente + ", cantidad=" + cantidad + ", financiable=" + financiable
+				+ ", clienteVip=" + clienteVip + "]";
 	}
-	
-	
-	
-	
 
+	
 }
